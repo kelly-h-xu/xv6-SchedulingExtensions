@@ -1,5 +1,10 @@
 # Project Overview 
-
+We implement 4 additional policies to xv6's scheduler:
+- FIFO (first in first out)
+- SJF (shortest job first)
+- STCF (shortest time to completion first)
+- MLFQ (multi-level feedback queue)
+  
 # Running Instructions for this Project 
 `make qemu SCHEDPOLICY=<policy>`
 The policy names that can be passed in are   
@@ -8,7 +13,8 @@ The policy names that can be passed in are
 - SJF 
 - STCF
 - MLFQ
-As an example, if we wanted to use the FIFO policy for scheduling, we would run `make qemu SCHEDPOLICY=FIFO>`. This creates a C macro named SCHED_FIFO (or whatever policy name we passed in), which we use in the scheduler function logic in proc.c.   
+   
+As an example, if we wanted to use the FIFO policy for scheduling, we would run `make qemu SCHEDPOLICY=FIFO>`. This creates a C macro named SCHED_FIFO (or SCHED_<whatever policy name we passed in>), which we use in the `scheduler` function logic in `proc.c`.   
 
 As another note, RR (round robin) is the default policy, so if a user runs `make qemu`, or passes an invalid policy flag, xv6 will use RR scheduling.
 
