@@ -78,10 +78,10 @@ CFLAGS += -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf
 CFLAGS += -I.
 CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
 
-# compile with -DSCHED_<policy> macro 
+# compile with -DSSCHEDPOLICY macro 
 #if user passed SCHEDPOLICY flag (`make qemu SCHEDPOLICY=<policy>`), SCHEDPOLICY is <policy>.
 #if not SCHEDPOLICY flag, defaults to RR
-CFLAGS += -DSCHED_$(SCHEDPOLICY)
+CFLAGS += -DSCHEDPOLICY=$(SCHEDPOLICY)
 
 # Disable PIE when possible (for Ubuntu 16.10 toolchain)
 ifneq ($(shell $(CC) -dumpspecs 2>/dev/null | grep -e '[^f]no-pie'),)
