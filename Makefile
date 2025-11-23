@@ -59,6 +59,10 @@ LD = $(TOOLPREFIX)ld
 OBJCOPY = $(TOOLPREFIX)objcopy
 OBJDUMP = $(TOOLPREFIX)objdump
 
+ifndef SCHEDPOLICY 
+	SCHEDPOLICY := RR
+endif
+
 CFLAGS = -Wall -Werror -Wno-unknown-attributes -O -fno-omit-frame-pointer -ggdb -gdwarf-2
 CFLAGS += -march=rv64gc
 CFLAGS += -MD
@@ -73,6 +77,11 @@ CFLAGS += -fno-builtin-memcpy -Wno-main
 CFLAGS += -fno-builtin-printf -fno-builtin-fprintf -fno-builtin-vprintf
 CFLAGS += -I.
 CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
+
+# compile with -DSCHED_<policy> macro 
+#if user passed SCHEDPOLICY flag (`make qemu SCHEDPOLICY=<policy>`), SCHEDPOLICY is <policy>.
+#if not SCHEDPOLICY flag, defaults to RR
+CFLAGS += -DSCHED_$(SCHEDPOLICY)
 
 # Disable PIE when possible (for Ubuntu 16.10 toolchain)
 ifneq ($(shell $(CC) -dumpspecs 2>/dev/null | grep -e '[^f]no-pie'),)
@@ -171,6 +180,11 @@ QEMUOPTS = -machine virt -bios none -kernel $K/kernel -m 128M -smp $(CPUS) -nogr
 QEMUOPTS += -global virtio-mmio.force-legacy=false
 QEMUOPTS += -drive file=fs.img,if=none,format=raw,id=x0
 QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+
+#for debugging, run make flags SCHEDPOLICY=<policy> to ensure SCHEDPOLICY has the value we expect 
+flags:
+	@echo "SCHEDPOLICY = $(SCHEDPOLICY)"
+	@echo "CFLAGS=$(CFLAGS)"
 
 qemu: check-qemu-version $K/kernel fs.img
 	$(QEMU) $(QEMUOPTS)

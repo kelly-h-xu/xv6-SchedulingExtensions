@@ -1,3 +1,18 @@
+# Project Overview 
+
+# Running Instructions for this Project 
+`make qemu SCHEDPOLICY=<policy>`
+The policy names that can be passed in are   
+- RR 
+- FIFO 
+- SJF 
+- STCF
+- MLFQ
+As an example, if we wanted to use the FIFO policy for scheduling, we would run `make qemu SCHEDPOLICY=FIFO>`. This creates a C macro named SCHED_FIFO (or whatever policy name we passed in), which we use in the scheduler function logic in proc.c.   
+
+As another note, RR (round robin) is the default policy, so if a user runs `make qemu`, or passes an invalid policy flag, xv6 will use RR scheduling.
+
+# Original xv6 README
 xv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix
 Version 6 (v6).  xv6 loosely follows the structure and style of v6,
 but is implemented for a modern RISC-V multiprocessor using ANSI C.
