@@ -12,6 +12,13 @@ struct proc proc[NPROC];
 
 struct proc *initproc;
 
+#ifndef SCHEDPOLICY
+#define SCHEDPOLICY RR
+#endif
+enum sched_policy SCHED_POLICY = SCHEDPOLICY;
+
+extern uint ticks;
+
 int nextpid = 1;
 struct spinlock pid_lock;
 
@@ -146,6 +153,15 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
+  // Initialize scheduling fields.
+  p->ctime = 0;
+  p->etime = 0;
+  p->rtime = 0;
+  p->expected_runtime = 0;
+  p->priority = 0;
+  p->queue_level = 0;
+  p->time_slice = 0;
+
   return p;
 }
 
@@ -168,6 +184,16 @@ freeproc(struct proc *p)
   p->chan = 0;
   p->killed = 0;
   p->xstate = 0;
+
+  // Clear scheduling metadata.
+  p->ctime = 0;
+  p->etime = 0;
+  p->rtime = 0;
+  p->expected_runtime = 0;
+  p->priority = 0;
+  p->queue_level = 0;
+  p->time_slice = 0;
+
   p->state = UNUSED;
 }
 
@@ -227,6 +253,7 @@ userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
+  p->ctime = ticks;
 
   release(&p->lock);
 }
@@ -300,6 +327,7 @@ kfork(void)
 
   acquire(&np->lock);
   np->state = RUNNABLE;
+  np->ctime = ticks;
   release(&np->lock);
 
   return pid;
@@ -356,6 +384,7 @@ kexit(int status)
   acquire(&p->lock);
 
   p->xstate = status;
+  p->etime = ticks;
   p->state = ZOMBIE;
 
   release(&wait_lock);
@@ -417,7 +446,7 @@ kwait(uint64 addr)
 // Scheduling policies ----------------------
 
 //default, round robin
-int
+static int
 schedule_rr(struct cpu *c)
 {
     struct proc *p;
@@ -429,7 +458,7 @@ schedule_rr(struct cpu *c)
             p->state = RUNNING;
             c->proc = p;
 
-            printf("RR: running PID %d\n", p->pid);
+            // printf("RR: running PID %d\n", p->pid);
             swtch(&c->context, &p->context);
 
             c->proc = 0;
@@ -441,27 +470,80 @@ schedule_rr(struct cpu *c)
 }
 
 //FIFO 
-int 
+static int 
 schedule_fifo(struct cpu *c)
 {
-  struct proc *p;
-    int found = 0;
-    for(p = proc; p < &proc[NPROC]; p++) {
-        acquire(&p->lock);
+  return schedule_rr(c);
+}
 
-        if(p->state == RUNNABLE) {
-            p->state = RUNNING;
-            c->proc = p;
+// Shortest job first
+static int
+schedule_sjf(struct cpu *c)
+{
+  for (;;) {
+    struct proc *best = 0;
+    uint64 best_key = ~0ULL;
+    uint64 best_ctime = ~0ULL;
+    int best_pid = 0;
 
-            printf("FIFO: running PID %d\n", p->pid);
-            swtch(&c->context, &p->context);
+    for (struct proc *p = proc; p < &proc[NPROC]; p++) {
+      acquire(&p->lock);
+      if (p->state == RUNNABLE) {
+        // 0 hint means "no info" -> treat as very large.
+        uint64 key = p->expected_runtime ? p->expected_runtime : ~0ULL;
 
-            c->proc = 0;
-            found = 1;
+        if (best == 0 ||
+          key < best_key ||
+          (key == best_key && (p->ctime < best_ctime ||
+          (p->ctime == best_ctime && p->pid < best_pid)))
+        ) {
+          best = p;
+          best_key = key;
+          best_ctime = p->ctime;
+          best_pid = p->pid;
         }
-        release(&p->lock);
+      }
+      release(&p->lock);
     }
-    return found;
+
+    if (best == 0)
+      return 0;
+    // If *all* RUNNABLE candidates had no hint, run RR this round.
+    if (best_key == ~0ULL)
+      return schedule_rr(c);
+
+    acquire(&best->lock);
+    if (best->state != RUNNABLE) {
+      // Raced with another CPU; try again.
+      release(&best->lock);
+      continue;
+    }
+
+    best->state = RUNNING;
+    c->proc = best;
+
+    // printf("SJF: running PID %d\n", best->pid);
+    swtch(&c->context, &best->context);
+
+    c->proc = 0;
+    release(&best->lock);
+    return 1;
+  }
+}
+
+// Shortest test to completion first
+static int
+schedule_stcf(struct cpu *c)
+{
+  return schedule_rr(c);
+
+}
+
+// Multi level feedback queue
+static int
+schedule_mlfq(struct cpu *c)
+{
+  return schedule_rr(c);
 }
 
 // Per-CPU process scheduler.
@@ -487,20 +569,30 @@ scheduler(void)
     intr_off();
 
     int found = 0;
-    
-    //choose scheduling policy based on flag passed to make qemu 
-    #ifdef SCHED_FIFO
-    found = schedule_fifo(c);
-    #elif defined(SCHED_SJF)
-        // found = schedule_sjf(c);
-    #elif defined(SCHED_STCF)
-        // found = schedule_stcf(c);
-    #elif defined(SCHED_MLFQ)
-        // found = schedule_mlfq(c);
-    #else
+
+    switch (SCHED_POLICY) {
+      case FIFO: {
+        found = schedule_fifo(c);
+        break;
+      }
+      case SJF: {
+        found = schedule_sjf(c);
+        break;
+      } 
+      case STCF: {
+        found = schedule_stcf(c);
+        break;
+      } 
+      case MLFQ: {
+        found = schedule_mlfq(c);
+        break;
+      }
+      default: {
         found = schedule_rr(c);
-    #endif
-    
+        break;
+      } 
+    }
+
     if(found == 0) {
       // nothing to run; stop running on this core until an interrupt.
       asm volatile("wfi");

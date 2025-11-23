@@ -107,3 +107,21 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+uint64
+sys_setexpected(void)
+{
+  int expected;
+  argint(0, &expected);
+
+  if (expected < 0)
+    expected = 0;
+
+  struct proc *p = myproc();
+
+  acquire(&p->lock);
+  p->expected_runtime = (uint64) expected;
+  release(&p->lock);
+
+  return 0;
+}
