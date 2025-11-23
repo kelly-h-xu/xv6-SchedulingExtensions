@@ -14,9 +14,9 @@ The policy names that can be passed in are
 - STCF
 - MLFQ
    
-As an example, if we wanted to use the FIFO policy for scheduling, we would run `make qemu SCHEDPOLICY=FIFO>`. This creates a C macro named SCHED_FIFO (or SCHED_<whatever policy name we passed in>), which we use in the `scheduler` function logic in `proc.c`.   
+As an example, if we wanted to use the FIFO policy for scheduling, we would run `make qemu SCHEDPOLICY=FIFO`. This creates a C macro named SCHED_FIFO (or SCHED_{whatever policy name we passed in}), which we use in the `scheduler` function logic in `proc.c`.   
 
-As another note, RR (round robin) is the default policy, so if a user runs `make qemu`, or passes an invalid policy flag, xv6 will use RR scheduling.
+As another note, we use RR (round robin) as the default policy, so if a user runs `make qemu`, or passes an invalid policy flag, xv6 will use RR scheduling.
 
 # Original xv6 README
 xv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix
