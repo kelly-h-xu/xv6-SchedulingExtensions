@@ -80,9 +80,15 @@ usertrap(void)
   if(killed(p))
     kexit(-1);
 
-  // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2)
+  // On timer interrupt, account CPU time and maybe preempt.
+  if(which_dev == 2){
+    // p is the current process (may be 0 if something weird, but here it won't be)
+    if (p != 0 && p->state == RUNNING) {
+      p->rtime++;
+    }
+
     yield();
+  }
 
   prepare_return();
 

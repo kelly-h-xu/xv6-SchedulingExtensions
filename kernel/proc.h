@@ -1,3 +1,15 @@
+// Scheduling policy used in this kernel build.
+enum sched_policy {
+  RR   = 0,
+  FIFO = 1,
+  SJF  = 2,
+  STCF = 3,
+  MLFQ = 4,
+};
+
+// Defined in proc.c, treated as a "build-time constant".
+extern enum sched_policy SCHED_POLICY;
+
 // Saved registers for kernel context switches.
 struct context {
   uint64 ra;
@@ -104,4 +116,16 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+
+  // metadata for scheduling
+  uint64 ctime;                // creation time (tick when first became RUNNABLE)
+  uint64 etime;                // exit time (tick when became ZOMBIE)
+  uint64 rtime;                // total CPU time (ticks this process has run)
+
+  
+  uint64 expected_runtime;     // Hint for SJF/STCF: expected total runtime (in ticks).
+
+  int priority;               // smaller = higher priority (for STCF/MLFQ)
+  int queue_level;            // MLFQ level (0 = top queue)
+  int time_slice;             // remaining ticks in current level's quantum
 };
