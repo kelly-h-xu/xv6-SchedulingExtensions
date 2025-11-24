@@ -599,6 +599,8 @@ schedule_mlfq(struct cpu *c)
   struct proc *p;
   double time = getTime();
   int found = 0;
+
+  starvation_clean();
     
   for (int prty = 0; prty < 3; prty ++) {
     for(p = proc; p < &proc[NPROC]; p++) {
