@@ -162,10 +162,10 @@ found:
   p->etime = 0;
   p->rtime = 0;
   p->expected_runtime = 0;
-  p->time_left = 0;
   p->priority = 0;
   p->queue_level = 0;
-  p->time_slice = 0;
+  p->time_slice = quantum[0];
+  p->demote = 0;
 
   return p;
 }
@@ -195,7 +195,6 @@ freeproc(struct proc *p)
   p->etime = 0;
   p->rtime = 0;
   p->expected_runtime = 0;
-  p->time_left = 0;
   p->priority = 0;
   p->queue_level = 0;
   p->time_slice = 0;
@@ -397,6 +396,19 @@ void kexit(int status)
   wakeup(p->parent);
 
   acquire(&p->lock);
+
+  uint64 time = getTime();
+  uint64 elapsed = time - p->ltime;
+
+  // Account for elapsed time
+  if (elapsed < p->time_slice) {
+    p->time_slice -= elapsed;
+  } else{
+    p->time_slice = 0;
+    p->demote = 1;
+  }
+  p->rtime += elapsed;      // total runtime trackin
+  p->etime = time;
 
   p->xstate = status;
   p->etime = ticks;
@@ -650,12 +662,90 @@ schedule_stcf(struct cpu *c)
   return 1;
 }
 
+
+//struct proc proc_prty1[NPROC];
+//struct proc proc_prty2[NPROC];
+//struct proc proc_prty3[NPROC];
+
+//int prty_arr[3] = {1,2,4};
+
+double starv_cut = 200;
+
+void
+starvation_clean(void)
+{
+  struct proc *p;
+  uint64 time = getTime();
+
+  // --- 1. Aging Step (prevent starvation)
+  for (p = proc; p < &proc[NPROC]; p++) {
+    acquire(&p->lock);
+    if (p->state == RUNNABLE) {
+      double waited = time - p->etime;
+      if (waited > starv_cut && p->queue_level > 0) { // waited > 200ms
+        p->queue_level--;
+        p->time_slice = quantum[p->queue_level];
+        p->etime = time;
+      }
+    }
+    release(&p->lock);
+  }
+}
+
+//Get time for 
+int startIndex[3] = {0,0,0};
 // Multi level feedback queue
 static int
 schedule_mlfq(struct cpu *c)
 {
-  return schedule_rr(c);
+  struct proc *p;
+  uint64 time = getTime();
+  int found = 0;
+
+start_search:
+  starvation_clean();
+    
+  for (int prty = 0; prty < 3; prty ++) {
+    for(int i = 0; i < NPROC; i++) {
+
+      int idx = (startIndex[prty] + 1 + i) % NPROC;
+      p = &proc[idx];
+
+      acquire(&p->lock);
+      if(p -> queue_level == prty && p->state == RUNNABLE) {
+            
+        p->state = RUNNING;
+        c->proc = p;
+
+        p -> ltime = getTime();
+
+        //check if first schedule
+        if (p -> stime == 0) {
+          p -> stime = p -> ltime;
+        }
+
+        swtch(&c->context, &p->context);
+
+        if (p -> time_slice == 0 && p -> queue_level < 2) {
+          p -> queue_level++;
+          p -> time_slice = quantum[p -> queue_level];
+          p -> demote = 0;
+        } 
+
+        c->proc = 0;
+        found = 1;
+        startIndex[prty] = idx;
+        c->intena = 0;
+        release(&p->lock);
+        goto start_search;
+      }
+      c->intena = 0;
+      release(&p->lock);
+    }
+  }
+  return found;
 }
+
 
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
@@ -750,6 +840,20 @@ void yield(void)
 {
   struct proc *p = myproc();
   acquire(&p->lock);
+
+  double end_time = get_time_ms();
+  p -> etime = end_time;
+  double elapsed = end_time - p->ltime;
+
+  // Account for elapsed time
+  if (elapsed < p->time_slice) {
+    p->time_slice -= elapsed;
+  } else {
+    p->time_slice = 0;
+    p->demote = 1;
+  }
+  p->rtime += elapsed;      // total runtime tracking
+  
   p->state = RUNNABLE;
 
   if (p->time_left > 0)
