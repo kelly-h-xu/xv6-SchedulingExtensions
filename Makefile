@@ -153,6 +153,7 @@ UPROGS=\
 	$U/_forphan\
 	$U/_dorphan\
 	$U/_schedtest\
+	$U/_stcftest\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
@@ -174,7 +175,9 @@ QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
 	then echo "-gdb tcp::$(GDBPORT)"; \
 	else echo "-s -p $(GDBPORT)"; fi)
 ifndef CPUS
-CPUS := 3
+
+#NOTE: Changing this to 1 CPU bc 3 is too complex to deal w in testing!
+CPUS := 1
 endif
 
 QEMUOPTS = -machine virt -bios none -kernel $K/kernel -m 128M -smp $(CPUS) -nographic
