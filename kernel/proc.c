@@ -328,7 +328,7 @@ int kfork(void)
 
   safestrcpy(np->name, p->name, sizeof(p->name));
 
-  np->expected_runtime = p->expected_runtime;
+  //np->expected_runtime = p->expected_runtime;
 
   pid = np->pid;
 
