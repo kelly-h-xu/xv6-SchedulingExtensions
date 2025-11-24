@@ -171,6 +171,7 @@ found:
   p->priority = 0;
   p->queue_level = 0;
   p->time_slice = quantum[0];
+  p->demote = 0;
 
   return p;
 }
@@ -414,7 +415,12 @@ void kexit(int status)
   uint64 elapsed = time - p->ltime;
 
   // Account for elapsed time
-  p->time_slice -= elapsed;
+  if (elapsed < p->time_slice) {
+    p->time_slice -= elapsed;
+  } else{
+    p->time_slice = 0;
+    p->demote = 1;
+  }
   p->rtime += elapsed;      // total runtime trackin
   p->etime = time;
 
@@ -702,7 +708,7 @@ starvation_clean(void)
 }
 
 //Get time for 
-
+int startIndex[3] = {0,0,0};
 // Multi level feedback queue
 static int
 schedule_mlfq(struct cpu *c)
@@ -711,10 +717,15 @@ schedule_mlfq(struct cpu *c)
   uint64 time = getTime();
   int found = 0;
 
+start_search:
   starvation_clean();
     
   for (int prty = 0; prty < 3; prty ++) {
-    for(p = proc; p < &proc[NPROC]; p++) {
+    for(int i = 0; i < NPROC; i++) {
+
+      int idx = (startIndex[prty] + 1 + i) % NPROC;
+      p = &proc[idx];
+
       acquire(&p->lock);
       if(p -> queue_level == prty && p->state == RUNNABLE) {
             
@@ -730,17 +741,18 @@ schedule_mlfq(struct cpu *c)
 
         swtch(&c->context, &p->context);
 
-        if (p -> time_slice <= 0 && p -> queue_level < 2) {
+        if (p -> time_slice == 0 && p -> queue_level < 2) {
           p -> queue_level++;
           p -> time_slice = quantum[p -> queue_level];
-        } else if (p->time_slice > 0 && p->queue_level > 0) {
-          // Voluntarily gave up CPU early → promote
-          p->queue_level--;
-          p->time_slice = quantum[p->queue_level];
-        }
+          p -> demote = 0;
+        } 
 
         c->proc = 0;
         found = 1;
+        startIndex[prty] = idx;
+        c->intena = 0;
+        release(&p->lock);
+        goto start_search;
       }
       c->intena = 0;
       release(&p->lock);
@@ -849,7 +861,12 @@ void yield(void)
   double elapsed = end_time - p->ltime;
 
   // Account for elapsed time
-  p->time_slice -= elapsed;
+  if (elapsed < p->time_slice) {
+    p->time_slice -= elapsed;
+  } else {
+    p->time_slice = 0;
+    p->demote = 1;
+  }
   p->rtime += elapsed;      // total runtime tracking
   
   p->state = RUNNABLE;

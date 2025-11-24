@@ -130,4 +130,5 @@ struct proc {
   int priority;               // smaller = higher priority (for STCF/MLFQ)
   int queue_level;            // MLFQ level (0 = top queue)
   uint64 time_slice;             // remaining time in current level's quantum
+  int demote;                 //time_slice never negative, need to keep track of this
 };
