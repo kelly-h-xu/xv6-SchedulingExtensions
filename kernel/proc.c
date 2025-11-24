@@ -328,7 +328,7 @@ int kfork(void)
 
   safestrcpy(np->name, p->name, sizeof(p->name));
 
-  np->expected_runtime = p->expected_runtime;
+  // np->expected_runtime = p->expected_runtime;
 
   pid = np->pid;
 
@@ -495,38 +495,43 @@ schedule_rr(struct cpu *c)
 static int
 schedule_fifo(struct cpu *c)
 {
-    struct proc *p;
-    struct proc *selected = 0;  // process with earliest ctime
-    int found = 0;
+  struct proc *p;
+  struct proc *selected = 0; // process with earliest ctime
+  int found = 0;
 
-    // First pass: find the RUNNABLE process with the smallest ctime
-    for(p = proc; p < &proc[NPROC]; p++) {
-        if(p->state == RUNNABLE) {
-            if (!selected || p->ctime < selected->ctime) {
-                selected = p;
-            }
-        }
+  // First pass: find the RUNNABLE process with the smallest ctime
+  for (p = proc; p < &proc[NPROC]; p++)
+  {
+    if (p->state == RUNNABLE)
+    {
+      if (!selected || p->ctime < selected->ctime)
+      {
+        selected = p;
+      }
+    }
+  }
+
+  // If a process is found, acquire its lock and run it
+  if (selected)
+  {
+    acquire(&selected->lock);
+
+    // Make sure it's still runnable
+    if (selected->state == RUNNABLE)
+    {
+      selected->state = RUNNING;
+      c->proc = selected;
+
+      swtch(&c->context, &selected->context);
+
+      c->proc = 0;
+      found = 1;
     }
 
-    // If a process is found, acquire its lock and run it
-    if (selected) {
-        acquire(&selected->lock);
+    release(&selected->lock);
+  }
 
-        // Make sure it's still runnable 
-        if(selected->state == RUNNABLE) {
-            selected->state = RUNNING;
-            c->proc = selected;
-
-            swtch(&c->context, &selected->context);
-
-            c->proc = 0;
-            found = 1;
-        }
-
-        release(&selected->lock);
-    }
-
-    return found;
+  return found;
 }
 
 // Shortest job first
@@ -538,17 +543,19 @@ schedule_sjf(struct cpu *c)
   uint64 best_ctime = ~0ULL;
   int best_pid = 0;
 
-  for (struct proc *p = proc; p < &proc[NPROC]; p++) {
+  for (struct proc *p = proc; p < &proc[NPROC]; p++)
+  {
     acquire(&p->lock);
-    if (p->state == RUNNABLE) {
+    if (p->state == RUNNABLE)
+    {
       // 0 hint means "no info" -> treat as very large.
       uint64 key = p->expected_runtime ? p->expected_runtime : ~0ULL;
 
       if (best == 0 ||
-        key < best_key ||
-        (key == best_key && (p->ctime < best_ctime ||
-        (p->ctime == best_ctime && p->pid < best_pid)))
-      ) {
+          key < best_key ||
+          (key == best_key && (p->ctime < best_ctime ||
+                               (p->ctime == best_ctime && p->pid < best_pid))))
+      {
         best = p;
         best_key = key;
         best_ctime = p->ctime;
@@ -565,7 +572,8 @@ schedule_sjf(struct cpu *c)
     return schedule_rr(c);
 
   acquire(&best->lock);
-  if (best->state != RUNNABLE) {
+  if (best->state != RUNNABLE)
+  {
     // Raced with another CPU; try again.
     release(&best->lock);
     return 0;

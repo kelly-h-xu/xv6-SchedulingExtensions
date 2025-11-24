@@ -2,7 +2,7 @@
 #include "kernel/stat.h"
 #include "user/user.h"
 
-// NOTE: wrapper for yield to help w testingg
+// // NOTE: wrapper for yield to help w testingg
 void work(int ticks)
 {
     for (int i = 0; i < ticks; i++)
@@ -209,6 +209,119 @@ int test_mixed_complex()
     return 1; // PASS
 }
 
+int test_stcf_vs_sjf_diff(void)
+{
+    printf("\n=== TEST 5: STCF vs SJF DIFFERENCE ===\n");
+
+    int pipeA[2], pipeB[2];
+    if (pipe(pipeA) < 0 || pipe(pipeB) < 0)
+    {
+        printf("pipe error\n");
+        return 0;
+    }
+
+    int pidA = fork();
+    if (pidA < 0)
+    {
+        printf("fork A failed\n");
+        return 0;
+    }
+    if (pidA == 0)
+    {
+        // Child A: long job
+        close(pipeA[1]); // only read end
+        close(pipeB[0]);
+        close(pipeB[1]);
+
+        setexpected(200);
+        setstcfvals(200);
+
+        // burn 100 "ticks"
+        work(100);
+
+        char buf;
+        // block here until parent writes
+        if (read(pipeA[0], &buf, 1) != 1)
+        {
+            printf("A: read failed\n");
+            exit(0);
+        }
+
+        // now finish remaining 100 "ticks"
+        work(100);
+        printf("A done (pid=%d)\n", getpid());
+        exit(0);
+    }
+
+    int pidB = fork();
+    if (pidB < 0)
+    {
+        printf("fork B failed\n");
+        return 0;
+    }
+    if (pidB == 0)
+    {
+        // Child B: medium job
+        close(pipeB[1]); // only read end
+        close(pipeA[0]);
+        close(pipeA[1]);
+
+        setexpected(150);
+        setstcfvals(150);
+
+        // burn 20 "ticks"
+        work(20);
+
+        char buf;
+        // block here until parent writes
+        if (read(pipeB[0], &buf, 1) != 1)
+        {
+            printf("B: read failed\n");
+            exit(0);
+        }
+
+        // now finish remaining ~130 "ticks"
+        work(130);
+        printf("B done (pid=%d)\n", getpid());
+        exit(0);
+    }
+
+    // Parent: we only use write ends
+    close(pipeA[0]);
+    close(pipeB[0]);
+
+    // Give both children time to reach their blocking reads.
+    // We just yield a bunch to let them run.
+    for (int i = 0; i < 2000; i++)
+        yield();
+
+    // Unblock both at (roughly) the same time
+    if (write(pipeA[1], "x", 1) != 1)
+        printf("parent: write A failed\n");
+    if (write(pipeB[1], "y", 1) != 1)
+        printf("parent: write B failed\n");
+
+    close(pipeA[1]);
+    close(pipeB[1]);
+
+    int first = wait(0);
+    int second = wait(0);
+
+    printf("Finish order (PIDs): %d, %d\n", first, second);
+    printf("Expected under STCF: A (pid=%d) then B (pid=%d)\n", pidA, pidB);
+
+    if (first == pidA && second == pidB)
+    {
+        printf("TEST 5 RESULT: PASS (looks like STCF, not SJF)\n");
+        return 1;
+    }
+    else
+    {
+        printf("TEST 5 RESULT: FAIL (behavior looks like SJF or incorrect STCF)\n");
+        return 0;
+    }
+}
+
 int main()
 {
     printf("===== STCF TEST SUITE =====\n");
@@ -217,16 +330,17 @@ int main()
     int pass_mix = test_mixed();
     int pass_arr = test_arrivals();
     int pass_mix_c = test_mixed_complex();
+    int pass_diff = test_stcf_vs_sjf_diff();
 
     printf("\n===== RESULTS =====\n");
-    printf("Test 1 (Preemption):      %s\n", pass_pre ? "PASS" : "FAIL");
-    printf("Test 2 (Mixed runtimes):  %s\n", pass_mix ? "PASS" : "FAIL");
-    printf("Test 3 (Arrivals):        %s\n", pass_arr ? "PASS" : "FAIL");
-    printf("Test 4 (Complex mixed):   %s\n", pass_mix_c ? "PASS" : "FAIL");
+    printf("Test 1 (Preemption): %s\n", pass_pre ? "PASS" : "FAIL");
+    printf("Test 2 (Mixed runtimes): %s\n", pass_mix ? "PASS" : "FAIL");
+    printf("Test 3 (Arrivals): %s\n", pass_arr ? "PASS" : "FAIL");
+    printf("Test 4 (Complex mixed): %s\n", pass_mix_c ? "PASS" : "FAIL");
+    printf("Test 5 (STCF vs SJF diff): %s\n", pass_diff ? "PASS" : "FAIL");
 
-    int total = pass_pre + pass_mix + pass_arr + pass_mix_c;
-
-    printf("Passed %d / 4 tests.\n", total);
+    int total = pass_pre + pass_mix + pass_arr + pass_mix_c + pass_diff;
+    printf("Passed %d / 5 tests.\n", total);
 
     exit(0);
 }

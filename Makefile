@@ -152,7 +152,6 @@ UPROGS=\
 	$U/_logstress\
 	$U/_forphan\
 	$U/_dorphan\
-	$U/_schedtest\
 	$U/_stcftest\
 	$U/_fifotest\
 	$U/_sjftest\
