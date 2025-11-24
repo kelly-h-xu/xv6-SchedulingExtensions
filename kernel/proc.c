@@ -34,12 +34,6 @@ extern char trampoline[]; // trampoline.S
 // must be acquired before any p->lock.
 struct spinlock wait_lock;
 
-double get_time_ms() {
-  unsigned long time;
-  asm volatile ("rdtime %0" : "=r" (time));
-  return (double) time / 10e3;
-}
-
 
 // Allocate a page for each process's kernel stack.
 // Map it high in memory, followed by an invalid
@@ -197,6 +191,7 @@ freeproc(struct proc *p)
   p->xstate = 0;
 
   // Clear scheduling metadata.
+
   p->ctime = 0;
   p->etime = 0;
   p->rtime = 0;
@@ -268,7 +263,7 @@ userinit(void)
 
   printf("Got here \n");
 
-  double time = get_time_ms();
+  double time = getTime();
   p->ctime = time;
 
   release(&p->lock);
@@ -343,7 +338,7 @@ kfork(void)
 
   acquire(&np->lock);
   np->state = RUNNABLE;
-  double time = get_time_ms();
+  double time = getTime();
   np->ctime = time;
   release(&np->lock);
 
@@ -400,13 +395,13 @@ kexit(int status)
   
   acquire(&p->lock);
 
-  double end_time = get_time_ms();
-  double elapsed = end_time - p->ltime;
+  double time = getTime();
+  double elapsed = time - p->ltime;
 
   // Account for elapsed time
   p->time_slice -= elapsed;
   p->rtime += elapsed;      // total runtime trackin
-  p->etime = end_time;
+  p->etime = time;
 
   p->xstate = status;
   //update runtime
@@ -574,6 +569,27 @@ schedule_stcf(struct cpu *c)
 
 double starv_cut = 200;
 
+void
+starvation_clean(void)
+{
+  struct proc *p;
+  double time = getTime();
+
+  // --- 1. Aging Step (prevent starvation)
+  for (p = proc; p < &proc[NPROC]; p++) {
+    acquire(&p->lock);
+    if (p->state == RUNNABLE) {
+      double waited = time - p->etime;
+      if (waited > starv_cut && p->queue_level > 0) { // waited > 200ms
+        p->queue_level--;
+        p->time_slice = quantum[p->queue_level];
+        p->etime = time;
+      }
+    }
+    release(&p->lock);
+  }
+}
+
 //Get time for 
 
 // Multi level feedback queue
@@ -581,26 +597,7 @@ static int
 schedule_mlfq(struct cpu *c)
 {
   struct proc *p;
-  //struct cpu *c = mycpu();
-  
-  //c->proc = 0;
-
-  double now = get_time_ms();
-
-  // --- 1. Aging Step (prevent starvation)
-  for (p = proc; p < &proc[NPROC]; p++) {
-    acquire(&p->lock);
-    if (p->state == RUNNABLE) {
-      double waited = now - p->etime;
-      if (waited > starv_cut && p->queue_level > 0) { // waited > 200ms
-        p->queue_level--;
-        p->time_slice = quantum[p->queue_level];
-        p->etime = now;
-      }
-    }
-    release(&p->lock);
-  }
-
+  double time = getTime();
   int found = 0;
     
   for (int prty = 0; prty < 3; prty ++) {
@@ -611,7 +608,7 @@ schedule_mlfq(struct cpu *c)
         p->state = RUNNING;
         c->proc = p;
 
-        p -> ltime = get_time_ms();
+        p -> ltime = getTime();
         swtch(&c->context, &p->context);
 
         if (p -> time_slice <= 0 && p -> queue_level < 2) {
@@ -630,11 +627,6 @@ schedule_mlfq(struct cpu *c)
       release(&p->lock);
     }
   }
-
-    //if(found == 0){
-    //  asm volatile("wfi");
-    //}
-
   return found;
 }
 

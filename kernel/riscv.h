@@ -344,7 +344,12 @@ sfence_vma()
   asm volatile("sfence.vma zero, zero");
 }
 
-
+//get Time (in milleseconds I believe)
+static inline double getTime() {
+  unsigned long time;
+  asm volatile ("rdtime %0" : "=r" (time));
+  return (double) time/1e3;
+}
 
 typedef uint64 pte_t;
 typedef uint64 *pagetable_t; // 512 PTEs
