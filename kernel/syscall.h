@@ -25,3 +25,6 @@
 // NOTE: This is for STCF scheduling
 #define SYS_setstcfvals 23
 #define SYS_yield 24
+
+// NOTE: for evaluation
+#define SYS_getprocinfo 25

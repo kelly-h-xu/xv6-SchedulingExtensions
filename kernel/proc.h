@@ -142,3 +142,6 @@ struct proc
   int queue_level; // MLFQ level (0 = top queue)
   int time_slice;  // remaining ticks in current level's quantum
 };
+
+// helper used in getprocinfo() in sysproc.c
+struct proc *getproc(int pid);

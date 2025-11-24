@@ -566,7 +566,7 @@ schedule_sjf(struct cpu *c)
   if (best->state != RUNNABLE) {
     // Raced with another CPU; try again.
     release(&best->lock);
-    continue;
+    //continue;
   }
 
   best->state = RUNNING;
@@ -951,4 +951,16 @@ void procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+//helper to getprocinfo
+struct proc *
+getproc(int pid)
+{
+    struct proc *p;
+    for(p = proc; p < &proc[NPROC]; p++){
+        if(p->pid == pid)
+            return p;
+    }
+    return 0;
 }

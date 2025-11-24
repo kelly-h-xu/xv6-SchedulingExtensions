@@ -45,3 +45,4 @@ entry("uptime");
 entry("setexpected");
 entry("setstcfvals");
 entry("yield");
+entry("getprocinfo");
