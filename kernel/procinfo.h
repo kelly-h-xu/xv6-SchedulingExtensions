@@ -8,6 +8,7 @@ struct procinfo {
   uint64 ctime;
   uint64 etime;
   uint64 rtime;
+  uint64 stime;
   uint64 expected_runtime;
   uint64 time_left;
   int priority;

@@ -179,20 +179,25 @@ sys_getprocinfo(void)
   acquire(&p->lock);
   info.pid = p->pid;
   info.state = p->state;
+  info.ctime = p->ctime;
+  info.etime = p->etime;
   info.rtime = p->rtime;
+  info.stime = p->stime;
+  
   info.expected_runtime = p->expected_runtime;
   info.time_left = p->time_left;
   info.priority = p->priority;
   info.queue_level = p->queue_level;
   info.time_slice = p->time_slice;
   safestrcpy(info.name, p->name, sizeof(info.name));
+
   release(&p->lock);
 
   // copy struct to user space
   struct procinfo *user_ptr;
   argaddr(1, (uint64*)&user_ptr);
   
-  if(copyout(p->pagetable, (uint64)user_ptr, (char *)&info, sizeof(info)) < 0)
+  if(copyout(myproc()->pagetable, (uint64)user_ptr, (char *)&info, sizeof(info)) < 0)
     return -1;
 
   return 0;

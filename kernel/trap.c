@@ -91,8 +91,9 @@ usertrap(void)
     // p is the current process (may be 0 if something weird, but here it won't be)
     if (p != 0 && p->state == RUNNING)
     {
+      acquire(&p->lock);
       p->rtime++;
-
+      release(&p->lock);
       // NOTE: Need to decrement time left for STCF --> scheduling moved to yield()
       yield();
     }

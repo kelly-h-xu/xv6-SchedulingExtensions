@@ -1,40 +1,46 @@
 #include "user.h"
-void work(int ticks, int pid)
+void work(int ticks)
 {
-    struct procinfo info;
     for (int i = 0; i < ticks; i++)
     {
-        yield();  // give up CPU to let scheduler run
-
-        if (i % 2 == 0) { // print every 2 ticks to reduce spam
-            if(getprocinfo(pid, &info) == 0){
-                printf("pid=%d, tick=%d, rtime=%lu, priority=%d, queue_level=%d\n",
-                       info.pid, i, info.rtime, info.priority, info.queue_level);
-            }
-        }
+        yield();  
     }
 }
 
 void print_info(int pid){
     struct procinfo info;
     if(getprocinfo(pid, &info) == 0){
-    printf("pid: %d, rtime: %lu, priority: %d, name: %s\n",
-           info.pid, info.rtime, info.priority, info.name);
-  } else {
-    printf("failed to get proc info for pid %d\n", pid);
-  }
+        uint64 tat = info.etime - info.ctime;            // turnaround time
+        uint64 wt  = tat - info.rtime;                  // waiting time
+        uint64 rt  = info.stime - info.ctime;           // response time
+        printf("pid: %d, ctime (creation time): %lu, stime (start time): %lu, rtime (runtime): %lu, etime (exit time): %lu, priority: %d, name: %s\n",
+            info.pid, info.ctime, info.stime, info.rtime, info.etime, info.priority, info.name);
+        printf("turnaround time %lu, waiting time %lu, response time %lu \n", tat, wt, rt);
+        } else {
+            printf("failed to get proc info for pid %d\n", pid);
+        }
 }
 
 //just check procinfo works for one process
 void simple_test(){
-    printf("simple test----------------");
-    int pid = 1;
-    print_info(pid);
+   printf("=== simple test with fork ===\n");
+    int pid = fork();
+    if(pid == 0){
+        // child
+        printf("Child starting: pid=%d\n", getpid());
+        work(200);    // simulate CPU work
+        printf("Child finishing: pid=%d\n", getpid());
+        exit(0);
+    } else {
+        // parent
+        print_info(pid);
+        wait(0); 
+    }
 }
 
 void fork_test_3()
 {
-    printf("=== Testing 3 forks with live procinfo ===\n");
+    printf("=== Testing 3 forks with procinfo ===\n");
 
     int n = 3;
     int pids[n];
@@ -49,11 +55,10 @@ void fork_test_3()
             int my_pid = getpid();
             printf("Child starting: pid=%d, work_ticks=%d\n", my_pid, my_work);
 
-            // print info before work
-            print_info(my_pid);
+            // // print info before work
+            // print_info(my_pid);
 
-            // do work with intermediate prints
-            work(my_work, my_pid);
+            work(my_work);
 
             // print info after work
             print_info(my_pid);
@@ -77,6 +82,6 @@ void fork_test_3()
 
 int main() {
   simple_test();
-  fork_test_3();
+  //fork_test_3();
   exit(0);
 }

@@ -134,6 +134,7 @@ struct proc
   uint64 ctime; // creation time (tick when first became RUNNABLE)
   uint64 etime; // exit time (tick when became ZOMBIE)
   uint64 rtime; // total CPU time (ticks this process has run)
+  uint64 stime; // start time (tick when the process runs on CPU for first time)
 
   uint64 expected_runtime; // Hint for SJF/STCF: expected total runtime (in ticks).
   uint64 time_left;        // Remaining time (in ticks) for STCF
