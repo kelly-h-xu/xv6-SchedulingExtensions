@@ -152,6 +152,7 @@ UPROGS=\
 	$U/_logstress\
 	$U/_forphan\
 	$U/_dorphan\
+	$U/_schedtest\
 	$U/_stcftest\
 	$U/_fifotest\
 	$U/_sjftest\
@@ -177,8 +178,6 @@ QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
 	then echo "-gdb tcp::$(GDBPORT)"; \
 	else echo "-s -p $(GDBPORT)"; fi)
 ifndef CPUS
-
-#NOTE: Changing this to 1 CPU bc 3 is too complex to deal w in testing!
 CPUS := 1
 endif
 
