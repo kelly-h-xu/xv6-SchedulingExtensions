@@ -83,8 +83,13 @@ usertrap(void)
   // On timer interrupt, account CPU time and maybe preempt.
   if(which_dev == 2){
     // p is the current process (may be 0 if something weird, but here it won't be)
-    if (p != 0 && p->state == RUNNING) {
+    if (p != 0 && p->state == RUNNING)
+    {
+      acquire(&p->lock);
       p->rtime++;
+      release(&p->lock);
+      // NOTE: Need to decrement time left for STCF --> scheduling moved to yield()
+      yield();
     }
 
     yield();

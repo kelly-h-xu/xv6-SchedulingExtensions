@@ -18,6 +18,7 @@ struct proc *initproc;
 enum sched_policy SCHED_POLICY = SCHEDPOLICY;
 
 extern uint ticks;
+extern struct spinlock tickslock;
 
 int nextpid = 1;
 struct spinlock pid_lock;
@@ -160,9 +161,12 @@ found:
   p->context.sp = p->kstack + PGSIZE;
 
   // Initialize scheduling fields.
-  p->ctime = 0;
+  acquire(&tickslock);
+  p->ctime = ticks;
+  release(&tickslock);
   p->etime = 0;
   p->rtime = 0;
+  p->stime = 0;
   p->expected_runtime = 0;
   p->priority = 0;
   p->queue_level = 0;
@@ -196,6 +200,7 @@ freeproc(struct proc *p)
   p->ctime = 0;
   p->etime = 0;
   p->rtime = 0;
+  p->stime = 0;
   p->expected_runtime = 0;
   p->priority = 0;
   p->queue_level = 0;
@@ -260,7 +265,7 @@ void userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
-  p->ctime = ticks;
+  //p->ctime = ticks;
 
   uint64 time = getTime();
   p->ctime = time;
@@ -344,7 +349,7 @@ int kfork(void)
 
   acquire(&np->lock);
   np->state = RUNNABLE;
-  np->ctime = ticks;
+  //np->ctime = ticks;
   release(&np->lock);
 
   return pid;
@@ -416,7 +421,9 @@ void kexit(int status)
   p->etime = time;
 
   p->xstate = status;
+  acquire(&tickslock);
   p->etime = ticks;
+  release(&tickslock);
   p->state = ZOMBIE;
 
   release(&wait_lock);
@@ -495,6 +502,11 @@ schedule_rr(struct cpu *c)
     if (p->state == RUNNABLE)
     {
       p->state = RUNNING;
+      if (p->rtime == 0){
+        acquire(&tickslock);
+        p->stime = ticks;
+        release(&tickslock);
+      }
       c->proc = p;
 
       // printf("RR: running PID %d\n", p->pid);
@@ -532,6 +544,11 @@ schedule_fifo(struct cpu *c)
         // Make sure it's still runnable 
         if(selected->state == RUNNABLE) {
             selected->state = RUNNING;
+            if (selected->rtime == 0){
+              acquire(&tickslock);
+              selected->stime = ticks;
+              release(&tickslock);
+            }
             c->proc = selected;
 
             swtch(&c->context, &selected->context);
@@ -772,7 +789,7 @@ void scheduler(void)
     // to avoid a possible race between an interrupt
     // and wfi.
     intr_on();
-    intr_off();
+    //intr_off();
 
     int found = 0;
 
@@ -1062,4 +1079,16 @@ void procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+//helper to getprocinfo
+struct proc *
+getproc(int pid)
+{
+    struct proc *p;
+    for(p = proc; p < &proc[NPROC]; p++){
+        if(p->pid == pid)
+            return p;
+    }
+    return 0;
 }

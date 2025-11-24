@@ -5,6 +5,7 @@
 #include "memlayout.h"
 #include "spinlock.h"
 #include "proc.h"
+#include "procinfo.h"
 #include "vm.h"
 
 uint64
@@ -122,6 +123,76 @@ sys_setexpected(void)
   acquire(&p->lock);
   p->expected_runtime = (uint64) expected;
   release(&p->lock);
+
+  return 0;
+}
+
+uint64
+sys_setstcfvals(void)
+{
+  int expected;
+  argint(0, &expected);
+
+  if (expected < 0)
+    expected = 0;
+
+  struct proc *p = myproc();
+
+  acquire(&p->lock);
+  p->expected_runtime = (uint64)expected;
+  p->time_left = (uint64)expected + 1;
+  release(&p->lock);
+
+  printf("sys_setstcfvals called with %d\n", expected);
+
+  return 0;
+}
+
+// NOTE: Needed to do this to have access to yield in the tests
+uint64
+sys_yield(void)
+{
+  yield();
+  return 0;
+}
+
+// Need this to get procinfo from kernel side to user side 
+uint64
+sys_getprocinfo(void)
+{
+  int pid;
+  struct procinfo info;
+  struct proc *p;
+
+  argint(0, &pid);
+
+  p = getproc(pid); // find process by pid
+  if(p == 0)
+    return -1;
+
+  acquire(&p->lock);
+  info.pid = p->pid;
+  info.state = p->state;
+  info.ctime = p->ctime;
+  info.etime = p->etime;
+  info.rtime = p->rtime;
+  info.stime = p->stime;
+  
+  info.expected_runtime = p->expected_runtime;
+  info.time_left = p->time_left;
+  info.priority = p->priority;
+  info.queue_level = p->queue_level;
+  info.time_slice = p->time_slice;
+  safestrcpy(info.name, p->name, sizeof(info.name));
+
+  release(&p->lock);
+
+  // copy struct to user space
+  struct procinfo *user_ptr;
+  argaddr(1, (uint64*)&user_ptr);
+  
+  if(copyout(myproc()->pagetable, (uint64)user_ptr, (char *)&info, sizeof(info)) < 0)
+    return -1;
 
   return 0;
 }

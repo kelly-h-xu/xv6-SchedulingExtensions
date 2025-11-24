@@ -132,3 +132,6 @@ struct proc {
   uint64 time_slice;             // remaining time in current level's quantum
   int demote;                 //time_slice never negative, need to keep track of this
 };
+
+// helper used in getprocinfo() in sysproc.c
+struct proc *getproc(int pid);
