@@ -13,7 +13,7 @@ sys_exit(void)
   int n;
   argint(0, &n);
   kexit(n);
-  return 0;  // not reached
+  return 0; // not reached
 }
 
 uint64
@@ -47,17 +47,21 @@ sys_sbrk(void)
   argint(1, &t);
   addr = myproc()->sz;
 
-  if(t == SBRK_EAGER || n < 0) {
-    if(growproc(n) < 0) {
+  if (t == SBRK_EAGER || n < 0)
+  {
+    if (growproc(n) < 0)
+    {
       return -1;
     }
-  } else {
+  }
+  else
+  {
     // Lazily allocate memory for this process: increase its memory
     // size but don't allocate memory. If the processes uses the
     // memory, vmfault() will allocate it.
-    if(addr + n < addr)
+    if (addr + n < addr)
       return -1;
-    if(addr + n > TRAPFRAME)
+    if (addr + n > TRAPFRAME)
       return -1;
     myproc()->sz += n;
   }
@@ -71,12 +75,14 @@ sys_pause(void)
   uint ticks0;
 
   argint(0, &n);
-  if(n < 0)
+  if (n < 0)
     n = 0;
   acquire(&tickslock);
   ticks0 = ticks;
-  while(ticks - ticks0 < n){
-    if(killed(myproc())){
+  while (ticks - ticks0 < n)
+  {
+    if (killed(myproc()))
+    {
       release(&tickslock);
       return -1;
     }
@@ -120,8 +126,37 @@ sys_setexpected(void)
   struct proc *p = myproc();
 
   acquire(&p->lock);
-  p->expected_runtime = (uint64) expected;
+  p->expected_runtime = (uint64)expected;
   release(&p->lock);
 
+  return 0;
+}
+
+uint64
+sys_setstcfvals(void)
+{
+  int expected;
+  argint(0, &expected);
+
+  if (expected < 0)
+    expected = 0;
+
+  struct proc *p = myproc();
+
+  acquire(&p->lock);
+  p->expected_runtime = (uint64)expected;
+  p->time_left = (uint64)expected + 1;
+  release(&p->lock);
+
+  printf("sys_setstcfvals called with %d\n", expected);
+
+  return 0;
+}
+
+// NOTE: Needed to do this to have access to yield in the tests
+uint64
+sys_yield(void)
+{
+  yield();
   return 0;
 }

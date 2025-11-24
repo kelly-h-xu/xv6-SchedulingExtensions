@@ -12,8 +12,8 @@ void work(int ticks)
 }
 
 // ------------------------------------------------------------
-// TEST 1: PREEMPTION
-// Long job runs first, short job arrives later → short must finish first
+// TEST 1: Non-PREEMPTION
+// Long job runs first, short job arrives later → long finishes first since arrived first
 // ------------------------------------------------------------
 int test_preempt()
 {
@@ -23,7 +23,6 @@ int test_preempt()
     if (p_long == 0)
     {
         setexpected(200);
-        setstcfvals(200);
         work(200);
         printf("LONG done (pid=%d)\n", getpid());
         exit(0);
@@ -36,7 +35,6 @@ int test_preempt()
     if (p_short == 0)
     {
         setexpected(20);
-        setstcfvals(20);
         work(20);
         printf("SHORT done (pid=%d)\n", getpid());
         exit(0);
@@ -45,15 +43,15 @@ int test_preempt()
     int first = wait(0);
     int second = wait(0);
 
-    printf("Finish #1: %d   (expected SHORT)\n", first);
-    printf("Finish #2: %d   (expected LONG)\n", second);
+    printf("Finish #1: %d   (expected LONG)\n", first);
+    printf("Finish #2: %d   (expected SHORT)\n", second);
 
-    return (first == p_short);
+    return (first == p_long);
 }
 
 // ------------------------------------------------------------
 // TEST 2: MIXED ORDER
-// runtimes = {80,10,40} → expected finish order = idx 1, idx 2, idx 0
+// runtimes = {80,10,40} → expected finish order = idx 0, idx 1, idx 2
 // ------------------------------------------------------------
 int test_mixed()
 {
@@ -68,7 +66,6 @@ int test_mixed()
         if (pid[i] == 0)
         {
             setexpected(rt[i]);
-            setstcfvals(rt[i]);
             work(rt[i]);
             printf("Child%d done (pid=%d)\n", i, getpid());
             exit(0);
@@ -88,13 +85,13 @@ int test_mixed()
     int p40 = pid[2];
     int p80 = pid[0];
 
-    return (finish[0] == p10 && finish[1] == p40 && finish[2] == p80);
+    return (finish[0] == p80 && finish[1] == p10 && finish[2] == p40);
 }
 
 // ------------------------------------------------------------
 // TEST 3: STAGGERED ARRIVALS
 // Long job starts first, then medium, then short
-// Expected finish: short → medium → long
+// Expected finish: long, medium, short 
 // ------------------------------------------------------------
 int test_arrivals()
 {
@@ -104,7 +101,6 @@ int test_arrivals()
     if (p_long == 0)
     {
         setexpected(200);
-        setstcfvals(200);
         work(200);
         printf("LONG done (pid=%d)\n", getpid());
         exit(0);
@@ -117,7 +113,6 @@ int test_arrivals()
     if (p_med == 0)
     {
         setexpected(50);
-        setstcfvals(50);
         work(50);
         printf("MED done (pid=%d)\n", getpid());
         exit(0);
@@ -130,7 +125,6 @@ int test_arrivals()
     if (p_short == 0)
     {
         setexpected(10);
-        setstcfvals(10);
         work(10);
         printf("SHORT done (pid=%d)\n", getpid());
         exit(0);
@@ -141,9 +135,9 @@ int test_arrivals()
     int f3 = wait(0);
 
     printf("Finish order: %d, %d, %d\n", f1, f2, f3);
-    printf("Expected: SHORT → MED → LONG\n");
+    printf("Expected: LONG → MED → SHORT\n");
 
-    return (f1 == p_short && f2 == p_med && f3 == p_long);
+    return (f1 == p_long && f2 == p_med && f3 == p_short);
 }
 
 int test_mixed_complex()
@@ -163,7 +157,6 @@ int test_mixed_complex()
         if (pid[i] == 0)
         {
             setexpected(rt[i]);
-            setstcfvals(rt[i]);
             work(rt[i]);
             exit(0);
         }
@@ -195,13 +188,13 @@ int test_mixed_complex()
         printf(" %d", f_rt[i]);
     printf("\n");
 
-    // --- Check STCF correctness: f_rt[] must be non-decreasing ---
+    // --- Check FIFO correctness: f_rt[] must have values equal to  ---
     for (int i = 1; i < 10; i++)
     {
-        if (f_rt[i] < f_rt[i - 1])
+        if (f_rt[i] != rt[i])
         {
-            printf("STCF VIOLATION at i=%d: %d < %d\n",
-                   i, f_rt[i], f_rt[i - 1]);
+            printf("FIFO VIOLATION at i=%d: f_rt value %d != rt value %d\n",
+                   i, f_rt[i], rt[i - 1]);
             return 0; // FAIL
         }
     }
@@ -211,7 +204,7 @@ int test_mixed_complex()
 
 int main()
 {
-    printf("===== STCF TEST SUITE =====\n");
+    printf("===== FIFO TEST SUITE =====\n");
 
     int pass_pre = test_preempt();
     int pass_mix = test_mixed();

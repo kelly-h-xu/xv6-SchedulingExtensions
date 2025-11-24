@@ -168,6 +168,7 @@ found:
   p->rtime = 0;
   p->ltime = 0;
   p->expected_runtime = 0;
+  p->time_left = 0;
   p->priority = 0;
   p->queue_level = 0;
   p->time_slice = quantum[0];
@@ -203,6 +204,7 @@ freeproc(struct proc *p)
   p->ltime = 0;
   p->stime = 0;
   p->expected_runtime = 0;
+  p->time_left = 0;
   p->priority = 0;
   p->queue_level = 0;
   p->time_slice = 0;
