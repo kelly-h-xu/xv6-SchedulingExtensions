@@ -345,10 +345,10 @@ sfence_vma()
 }
 
 //get Time (in milleseconds I believe)
-static inline double getTime() {
+static inline uint64 getTime() {
   unsigned long time;
   asm volatile ("rdtime %0" : "=r" (time));
-  return (double) time/1e3;
+  return (uint64) time;
 }
 
 typedef uint64 pte_t;
