@@ -260,6 +260,9 @@ void userinit(void)
   p->state = RUNNABLE;
   p->ctime = ticks;
 
+  uint64 time = getTime();
+  p->ctime = time;
+
   release(&p->lock);
 }
 
@@ -669,7 +672,7 @@ schedule_stcf(struct cpu *c)
 
 //int prty_arr[3] = {1,2,4};
 
-double starv_cut = 200;
+uint64 starv_cut = 200;
 
 void
 starvation_clean(void)
@@ -681,7 +684,7 @@ starvation_clean(void)
   for (p = proc; p < &proc[NPROC]; p++) {
     acquire(&p->lock);
     if (p->state == RUNNABLE) {
-      double waited = time - p->etime;
+      uint64 waited = time - p->etime;
       if (waited > starv_cut && p->queue_level > 0) { // waited > 200ms
         p->queue_level--;
         p->time_slice = quantum[p->queue_level];
@@ -841,9 +844,9 @@ void yield(void)
   struct proc *p = myproc();
   acquire(&p->lock);
 
-  double end_time = get_time_ms();
+  uint64 end_time = getTime();
   p -> etime = end_time;
-  double elapsed = end_time - p->ltime;
+  uint64 elapsed = end_time - p->ltime;
 
   // Account for elapsed time
   if (elapsed < p->time_slice) {

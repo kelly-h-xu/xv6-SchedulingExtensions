@@ -344,6 +344,12 @@ sfence_vma()
   asm volatile("sfence.vma zero, zero");
 }
 
+static inline uint64 getTime() {
+  unsigned long time;
+  asm volatile ("rdtime %0" : "=r" (time));
+  return (uint64) time;
+}
+
 typedef uint64 pte_t;
 typedef uint64 *pagetable_t; // 512 PTEs
 
