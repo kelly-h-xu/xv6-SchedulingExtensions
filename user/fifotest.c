@@ -43,10 +43,10 @@ int test_preempt()
     int first = wait(0);
     int second = wait(0);
 
-    printf("Finish #1: %d   (expected SHORT)\n", first);
-    printf("Finish #2: %d   (expected LONG)\n", second);
+    printf("Finish #1: %d   (expected LONG)\n", first);
+    printf("Finish #2: %d   (expected SHORT)\n", second);
 
-    return (first == p_short);
+    return (first == p_long);
 }
 
 // ------------------------------------------------------------
