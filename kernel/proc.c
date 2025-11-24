@@ -542,17 +542,31 @@ schedule_sjf(struct cpu *c)
       release(&best->lock);
       continue;
     }
-
-    best->state = RUNNING;
-    c->proc = best;
-
-    // printf("SJF: running PID %d\n", best->pid);
-    swtch(&c->context, &best->context);
-
-    c->proc = 0;
-    release(&best->lock);
-    return 1;
+    release(&p->lock);
   }
+
+  if (best == 0)
+    return 0;
+  // If *all* RUNNABLE candidates had no hint, run RR this round.
+  if (best_key == ~0ULL)
+    return schedule_rr(c);
+
+  acquire(&best->lock);
+  if (best->state != RUNNABLE) {
+    // Raced with another CPU; try again.
+    release(&best->lock);
+    continue;
+  }
+
+  best->state = RUNNING;
+  c->proc = best;
+
+  // printf("SJF: running PID %d\n", best->pid);
+  swtch(&c->context, &best->context);
+
+  c->proc = 0;
+  release(&best->lock);
+  return 1;
 }
 
 // Shortest time to completion first
