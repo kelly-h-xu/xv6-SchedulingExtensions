@@ -25,6 +25,8 @@ struct spinlock pid_lock;
 extern void forkret(void);
 static void freeproc(struct proc *p);
 
+static const uint64 quantum[3] = {0.5*10000, 1*10000, 2*10000};  //Quantum in milleseconds
+
 extern char trampoline[]; // trampoline.S
 
 // helps ensure that wakeups of wait()ing
