@@ -683,31 +683,31 @@ void scheduler(void)
 
     switch (SCHED_POLICY)
     {
-    case FIFO:
-    {
-      found = schedule_fifo(c);
-      break;
-    }
-    case SJF:
-    {
-      found = schedule_sjf(c);
-      break;
-    }
-    case STCF:
-    {
-      found = schedule_stcf(c);
-      break;
-    }
-    case MLFQ:
-    {
-      found = schedule_mlfq(c);
-      break;
-    }
-    default:
-    {
-      found = schedule_rr(c);
-      break;
-    }
+      case FIFO:
+      {
+        found = schedule_fifo(c);
+        break;
+      }
+      case SJF:
+      {
+        found = schedule_sjf(c);
+        break;
+      }
+      case STCF:
+      {
+        found = schedule_stcf(c);
+        break;
+      }
+      case MLFQ:
+      {
+        found = schedule_mlfq(c);
+        break;
+      }
+      default:
+      {
+        found = schedule_rr(c);
+        break;
+      }
     }
 
     if (found == 0)
