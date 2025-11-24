@@ -333,6 +333,8 @@ int kfork(void)
 
   safestrcpy(np->name, p->name, sizeof(p->name));
 
+  np->expected_runtime = p->expected_runtime;
+
   pid = np->pid;
 
   release(&np->lock);
@@ -583,7 +585,7 @@ schedule_sjf(struct cpu *c)
   if (best->state != RUNNABLE) {
     // Raced with another CPU; try again.
     release(&best->lock);
-    //continue;
+    return 0;
   }
 
   best->state = RUNNING;

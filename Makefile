@@ -152,9 +152,9 @@ UPROGS=\
 	$U/_logstress\
 	$U/_forphan\
 	$U/_dorphan\
-	$U/_schedtest\
 	$U/_stcftest\
 	$U/_fifotest\
+	$U/_sjftest\
 	$U/_schedeval\
 
 fs.img: mkfs/mkfs README $(UPROGS)
