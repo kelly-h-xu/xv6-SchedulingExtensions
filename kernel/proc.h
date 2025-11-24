@@ -131,14 +131,16 @@ struct proc
   char name[16];               // Process name (debugging)
 
   // metadata for scheduling
-  uint64 ctime; // creation time (tick when first became RUNNABLE)
-  uint64 etime; // exit time (tick when became ZOMBIE)
-  uint64 rtime; // total CPU time (ticks this process has run)
+  uint64 ctime;                // creation time (time when first became RUNNABLE)
+  uint64 etime;                // exit time (time when became ZOMBIE), but also end of last schedule
+  uint64 rtime;                // total CPU time (time this process has run)
+  uint64 stime;                // first scheduled time
+  uint64 ltime;                // last scheduled time
 
   uint64 expected_runtime; // Hint for SJF/STCF: expected total runtime (in ticks).
   uint64 time_left;        // Remaining time (in ticks) for STCF
 
-  int priority;    // smaller = higher priority (for STCF/MLFQ)
-  int queue_level; // MLFQ level (0 = top queue)
-  int time_slice;  // remaining ticks in current level's quantum
+  int priority;               // smaller = higher priority (for STCF/MLFQ)
+  int queue_level;            // MLFQ level (0 = top queue)
+  uint64 time_slice;             // remaining time in current level's quantum
 };
