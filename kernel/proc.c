@@ -161,9 +161,10 @@ found:
   p->context.sp = p->kstack + PGSIZE;
 
   // Initialize scheduling fields.
-  acquire(&tickslock);
-  p->ctime = ticks;
-  release(&tickslock);
+  // acquire(&tickslock);
+  // p->ctime = ticks;
+  // release(&tickslock);
+  p->ctime = getTime();
   p->etime = 0;
   p->rtime = 0;
   p->stime = 0;
@@ -408,8 +409,8 @@ void kexit(int status)
   acquire(&p->lock);
 
   uint64 time = getTime();
-  uint64 elapsed = time - p->ltime;
-
+  uint64 elapsed = getTime() - p->ltime;
+  
   // Account for elapsed time
   if (elapsed < p->time_slice) {
     p->time_slice -= elapsed;
@@ -417,13 +418,11 @@ void kexit(int status)
     p->time_slice = 0;
     p->demote = 1;
   }
-  p->rtime += elapsed;      // total runtime trackin
-  p->etime = time;
+
 
   p->xstate = status;
-  acquire(&tickslock);
-  p->etime = ticks;
-  release(&tickslock);
+  p->rtime += elapsed;  //cpu burst time tracking
+  p->etime = time;
   p->state = ZOMBIE;
 
   release(&wait_lock);
@@ -502,15 +501,15 @@ schedule_rr(struct cpu *c)
     if (p->state == RUNNABLE)
     {
       p->state = RUNNING;
+      p -> ltime = getTime();
       if (p->rtime == 0){
-        acquire(&tickslock);
-        p->stime = ticks;
-        release(&tickslock);
+        p->stime = getTime();
       }
       c->proc = p;
 
       // printf("RR: running PID %d\n", p->pid);
       swtch(&c->context, &p->context);
+      p->rtime += getTime() - p->ltime;
 
       c->proc = 0;
       found = 1;
@@ -544,15 +543,14 @@ schedule_fifo(struct cpu *c)
         // Make sure it's still runnable 
         if(selected->state == RUNNABLE) {
             selected->state = RUNNING;
+            selected -> ltime = getTime();
             if (selected->rtime == 0){
-              acquire(&tickslock);
-              selected->stime = ticks;
-              release(&tickslock);
+              selected->stime = getTime();
             }
             c->proc = selected;
 
             swtch(&c->context, &selected->context);
-
+            selected->rtime += getTime() - selected->ltime;
             c->proc = 0;
             found = 1;
         }
@@ -606,10 +604,15 @@ schedule_sjf(struct cpu *c)
   }
 
   best->state = RUNNING;
+  if (best->rtime == 0){
+      best->stime = getTime();
+  }
   c->proc = best;
 
   // printf("SJF: running PID %d\n", best->pid);
+  best->ltime = getTime();
   swtch(&c->context, &best->context);
+  best->rtime += getTime() - best->ltime;
 
   c->proc = 0;
   release(&best->lock);
@@ -675,9 +678,14 @@ schedule_stcf(struct cpu *c)
   }
 
   best->state = RUNNING;
+  if (best->rtime == 0){
+      best->stime = getTime();
+  }
   c->proc = best;
 
+  best->ltime = getTime();
   swtch(&c->context, &best->context);
+  best->rtime += getTime() - best->ltime;
 
   c->proc = 0;
   release(&best->lock);
@@ -863,10 +871,11 @@ void yield(void)
 {
   struct proc *p = myproc();
   acquire(&p->lock);
-
-  uint64 end_time = getTime();
-  p -> etime = end_time;
-  uint64 elapsed = end_time - p->ltime;
+  
+  uint64 time = getTime();
+  uint64 elapsed = time - p->ltime;
+  // p->rtime += elapsed;  //cpu burst time tracking
+  p -> etime = time;
 
   // Account for elapsed time
   if (elapsed < p->time_slice) {
@@ -875,7 +884,6 @@ void yield(void)
     p->time_slice = 0;
     p->demote = 1;
   }
-  p->rtime += elapsed;      // total runtime tracking
   
   p->state = RUNNABLE;
 
@@ -942,6 +950,10 @@ void sleep(void *chan, struct spinlock *lk)
   acquire(&p->lock); // DOC: sleeplock1
   release(lk);
 
+  // uint64 time = getTime();
+  // uint64 elapsed = time - p->ltime;
+  // p->rtime += elapsed;  //cpu burst time tracking
+ 
   // Go to sleep.
   p->chan = chan;
   p->state = SLEEPING;
@@ -1088,8 +1100,12 @@ getproc(int pid)
 {
     struct proc *p;
     for(p = proc; p < &proc[NPROC]; p++){
-        if(p->pid == pid)
-            return p;
-    }
+        acquire(&p->lock);
+        if(p->pid == pid){
+          release(&p->lock);
+          return p;
+        }
+        release(&p->lock);
+      }
     return 0;
 }

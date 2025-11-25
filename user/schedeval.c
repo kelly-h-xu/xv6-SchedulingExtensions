@@ -7,18 +7,66 @@ void work(int ticks)
     }
 }
 
+uint64 MICROSECONDS = 10;
+uint64  MILLISECONDS = 10000;
+uint64  scale;
+
 void print_info(int pid){
     struct procinfo info;
+    scale = MICROSECONDS;
+    char units[] = "µs";
+    if(scale == MILLISECONDS){
+        strcpy(units, "ms");
+    }
+   
     if(getprocinfo(pid, &info) == 0){
-        uint64 tat = info.etime - info.ctime;            // turnaround time
-        uint64 wt  = tat - info.rtime;                  // waiting time
-        uint64 rt  = info.stime - info.ctime;           // response time
+        uint64 tat = (info.etime - info.ctime)/scale;            // turnaround time
+        uint64 wt  = ((info.etime - info.ctime) - info.rtime)/scale;                  // waiting time
+        uint64 rt  = (info.stime - info.ctime)/scale;           // response time
         printf("pid: %d, ctime (creation time): %lu, stime (start time): %lu, rtime (runtime): %lu, etime (exit time): %lu, priority: %d, name: %s\n",
-            info.pid, info.ctime, info.stime, info.rtime, info.etime, info.priority, info.name);
-        printf("turnaround time %lu, waiting time %lu, response time %lu \n", tat, wt, rt);
+            info.pid, info.ctime/scale, info.stime/scale, info.rtime/scale, info.etime/scale, info.priority, info.name);
+        printf("turnaround time %lu %s, waiting time %lu %s, response time %lu %s \n", tat, units, wt, units, rt, units);
         } else {
             printf("failed to get proc info for pid %d\n", pid);
         }
+}
+
+int test_preempt()
+{
+    printf("\n=== TEST 1: PREEMPTION ===\n");
+
+    int p_long = fork();
+    if (p_long == 0)
+    {
+        setexpected(200);
+        work(200);
+        int pid = getpid();
+        printf("LONG done (pid=%d)\n", pid);
+        print_info(pid);
+        exit(0);
+    }
+
+    for (volatile int i = 0; i < 3000000; i++)
+        ; // small delay
+
+    int p_short = fork();
+    if (p_short == 0)
+    {
+        setexpected(20);
+        work(20);
+        int pid = getpid();
+        printf("SHORT done (pid=%d)\n", pid);
+        print_info(pid);
+        exit(0);
+    }
+
+    int first = wait(0);
+    int second = wait(0);
+
+    printf("Finish #1: %d   (expected LONG)\n", first);
+    printf("Finish #2: %d   (expected SHORT)\n", second);
+
+    return (first == p_long);
 }
 
 //just check procinfo works for one process
@@ -81,7 +129,8 @@ void fork_test_3()
 
 
 int main() {
-  simple_test();
+   test_preempt();
+  //simple_test();
   //fork_test_3();
   exit(0);
 }
