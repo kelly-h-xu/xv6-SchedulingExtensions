@@ -17,7 +17,14 @@
 #define SYS_write  16
 #define SYS_mknod  17
 #define SYS_unlink 18
-#define SYS_link   19
-#define SYS_mkdir  20
-#define SYS_close  21
-#define SYS_setexpected  22
+#define SYS_link 19
+#define SYS_mkdir 20
+#define SYS_close 21
+#define SYS_setexpected 22
+
+// NOTE: This is for STCF scheduling
+#define SYS_setstcfvals 23
+#define SYS_yield 24
+
+// NOTE: for evaluation
+#define SYS_getprocinfo 25
