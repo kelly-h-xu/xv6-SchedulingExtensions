@@ -704,50 +704,69 @@ static int
 schedule_mlfq(struct cpu *c)
 {
   struct proc *p;
-  uint64 time = getTime();
+  struct proc *min_p;
+
   int found = 0;
 
 start_search:
   starvation_clean();
-    
-  for (int prty = 0; prty < 3; prty ++) {
-    for(int i = 0; i < NPROC; i++) {
 
-      int idx = (startIndex[prty] + 1 + i) % NPROC;
-      p = &proc[idx];
+  for (int prty = 0; prty < 3; prty ++) {
+    min_p = 0;
+
+    for(p = proc; p < &proc[NPROC]; p++) {
 
       acquire(&p->lock);
       if(p -> queue_level == prty && p->state == RUNNABLE) {
-            
-        p->state = RUNNING;
-        c->proc = p;
-
-        p -> ltime = getTime();
-
-        //check if first schedule
-        if (p -> stime == 0) {
-          p -> stime = p -> ltime;
+        if (min_p == 0 || p->ltime < min_p->ltime) { //find last scheduled job
+          if (min_p != 0) { 
+            c -> intena = 0;
+            release(&min_p -> lock);
+          }
+          min_p = p;
+          continue;
         }
-
-        swtch(&c->context, &p->context);
-
-        if (p -> time_slice == 0 && p -> queue_level < 2) {
-          p -> queue_level++;
-          p -> time_slice = quantum[p -> queue_level];
-          p -> demote = 0;
-        } 
-
-        c->proc = 0;
-        found = 1;
-        startIndex[prty] = idx;
-        c->intena = 0;
-        release(&p->lock);
-        goto start_search;
       }
+      c -> intena = 0;
+      release(&p -> lock);
+    }
+    if (min_p != 0) {
+      //lock for min_p already acquired
+      p = min_p;
+      //printf("pid %d \n", p -> pid);
+
+      if (p->state != RUNNABLE) {
+        break;
+      }
+      p->state = RUNNING;
+      c->proc = p;
+
+      p -> ltime = getTime();
+
+      if (p -> stime == 0) {
+        p -> stime = p -> ltime;
+      }
+      swtch(&c->context, &p->context);
+
+      //printf("PID %d got back here with  time slice: %d, queue_level: %d \n", p -> pid, p->time_slice, p->queue_level);
+      //printf("Truth: %d", p -> time_slice <= 0 && p -> queue_level < 2);
+
+      if (p -> time_slice == 0 && p -> queue_level < 2) {
+        printf("Demotion happened \n");
+        p -> queue_level++;
+        p -> time_slice = quantum[p -> queue_level];
+        p -> demote = 0;
+      } 
+
+      c->proc = 0;
+      found = 1;
       c->intena = 0;
       release(&p->lock);
+      goto start_search;
     }
-  }
+    c->intena = 0;
+  } 
+  
   return found;
 }
 
