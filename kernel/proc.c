@@ -337,7 +337,7 @@ int kfork(void)
   safestrcpy(np->name, p->name, sizeof(p->name));
 
   np->expected_runtime = p->expected_runtime;
-
+  np -> ctime = getTime(); //ctime added for forked process
   pid = np->pid;
 
   release(&np->lock);
