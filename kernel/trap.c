@@ -89,7 +89,6 @@ usertrap(void)
       p->rtime++;
       release(&p->lock);
       // NOTE: Need to decrement time left for STCF --> scheduling moved to yield()
-      yield();
     }
 
     yield();

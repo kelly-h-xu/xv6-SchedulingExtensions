@@ -167,6 +167,7 @@ found:
   p->stime = 0;
   p->ltime = 0;
   p->expected_runtime = 0;
+  p->time_left = 0;
   p->priority = 0;
   p->queue_level = 0;
   p->time_slice = quantum[0];
@@ -813,7 +814,7 @@ void scheduler(void)
     // to avoid a possible race between an interrupt
     // and wfi.
     intr_on();
-    //intr_off();
+    intr_off();
 
     int found = 0;
 

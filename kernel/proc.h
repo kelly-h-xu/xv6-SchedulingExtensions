@@ -123,7 +123,7 @@ struct proc {
   uint64 rtime;                // total CPU time (time this process has run)
   uint64 stime;                // first scheduled time
   uint64 ltime;                // last scheduled time
-  uint64 time_left;
+  uint64 time_left;            // Remaining time (in ticks) for STCF
   
   uint64 expected_runtime;     // Hint for SJF/STCF: expected total runtime (in ticks).
 
