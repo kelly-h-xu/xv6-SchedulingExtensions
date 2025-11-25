@@ -168,6 +168,7 @@ found:
   p->etime = 0;
   p->rtime = 0;
   p->stime = 0;
+  p->ltime = 0;
   p->expected_runtime = 0;
   p->priority = 0;
   p->queue_level = 0;
@@ -202,6 +203,7 @@ freeproc(struct proc *p)
   p->etime = 0;
   p->rtime = 0;
   p->stime = 0;
+  p->ltime = 0;
   p->expected_runtime = 0;
   p->priority = 0;
   p->queue_level = 0;
