@@ -25,6 +25,7 @@ int getpid(void);
 char* sys_sbrk(int,int);
 int pause(int);
 int uptime(void);
+int yield(void);
 int setexpected(int ticks);
 int setstcfvals(int hint);
 int getprocinfo(int pid, struct procinfo *info);

@@ -722,9 +722,10 @@ schedule_mlfq(struct cpu *c)
 {
   struct proc *p;
   uint64 time = getTime();
+  (void)time;
   int found = 0;
 
-start_search:
+  start_search:
   starvation_clean();
     
   for (int prty = 0; prty < 3; prty ++) {
