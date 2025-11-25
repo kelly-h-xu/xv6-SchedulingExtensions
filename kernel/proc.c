@@ -161,9 +161,6 @@ found:
   p->context.sp = p->kstack + PGSIZE;
 
   // Initialize scheduling fields.
-  // acquire(&tickslock);
-  // p->ctime = ticks;
-  // release(&tickslock);
   p->ctime = getTime();
   p->etime = 0;
   p->rtime = 0;
@@ -268,7 +265,6 @@ void userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
-  //p->ctime = ticks;
 
   uint64 time = getTime();
   p->ctime = time;
@@ -352,7 +348,6 @@ int kfork(void)
 
   acquire(&np->lock);
   np->state = RUNNABLE;
-  //np->ctime = ticks;
   release(&np->lock);
 
   return pid;
@@ -770,13 +765,13 @@ schedule_mlfq(struct cpu *c)
 
       p -> ltime = getTime();
 
-      if (p -> stime == 0) {
-        p -> stime = p -> ltime;
-      }
-      swtch(&c->context, &p->context);
+        //check if first schedule
+        if (p -> stime == 0) {
+          p -> stime = p -> ltime;
+        }
 
-      //printf("PID %d got back here with  time slice: %d, queue_level: %d \n", p -> pid, p->time_slice, p->queue_level);
-      //printf("Truth: %d", p -> time_slice <= 0 && p -> queue_level < 2);
+        swtch(&c->context, &p->context);
+        p->rtime += getTime()-p->ltime;
 
       if (p -> time_slice == 0 && p -> queue_level < 2) {
         printf("Demotion happened \n");
@@ -894,7 +889,6 @@ void yield(void)
   
   uint64 time = getTime();
   uint64 elapsed = time - p->ltime;
-  // p->rtime += elapsed;  //cpu burst time tracking
   p -> etime = time;
 
   // Account for elapsed time
@@ -969,10 +963,6 @@ void sleep(void *chan, struct spinlock *lk)
 
   acquire(&p->lock); // DOC: sleeplock1
   release(lk);
-
-  // uint64 time = getTime();
-  // uint64 elapsed = time - p->ltime;
-  // p->rtime += elapsed;  //cpu burst time tracking
  
   // Go to sleep.
   p->chan = chan;

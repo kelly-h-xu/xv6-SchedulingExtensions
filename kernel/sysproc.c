@@ -143,7 +143,7 @@ sys_setstcfvals(void)
   p->time_left = (uint64)expected + 1;
   release(&p->lock);
 
-  printf("sys_setstcfvals called with %d\n", expected);
+  //printf("sys_setstcfvals called with %d\n", expected);
 
   return 0;
 }
