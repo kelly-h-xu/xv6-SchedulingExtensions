@@ -759,7 +759,7 @@ priorities_reorient(struct proc *p)
 }
 
 
-uint64 starv_cut = 200;
+uint64 starv_cut = 1000*10000;
 
 void
 starvation_clean(void)
