@@ -172,6 +172,7 @@ found:
   p->queue_level = 0;
   p->time_slice = quantum[0];
   p->demote = 0;
+  p->waiting_for = 0;
 
   return p;
 }
