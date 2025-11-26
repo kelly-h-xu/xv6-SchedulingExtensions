@@ -760,7 +760,7 @@ priorities_reorient(struct proc *p)
   }
 }
 
-
+/*
 uint64 starv_cut = 1000*10000;
 
 void
@@ -783,6 +783,7 @@ starvation_clean(void)
     release(&p->lock);
   }
 }
+*/
 
 //Get time for 
 int startIndex[3] = {0,0,0};
@@ -796,7 +797,7 @@ schedule_mlfq(struct cpu *c)
   int found = 0;
 
   start_search:
-  starvation_clean();
+  //starvation_clean();
 
   for (int prty = 0; prty < 3; prty ++) {
     min_p = 0;
@@ -839,9 +840,12 @@ schedule_mlfq(struct cpu *c)
         p->rtime += getTime()-p->ltime;
 
       if (p -> time_slice == 0 && p -> queue_level < 2) {
-        printf("Demotion happened \n");
+        if (p -> priority < 2) {
+            p -> priority++;
+        }
+        printf("Demotion happened for process %d with queue_level %d \n", p -> pid, p->queue_level);
         p -> queue_level++;
-        p -> time_slice = quantum[p -> queue_level];
+        p -> time_slice = quantum[p -> priority];
         p -> demote = 0;
 
         release(&p -> lock);
