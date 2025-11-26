@@ -126,11 +126,12 @@ struct proc {
   uint64 time_left;            // Remaining time (in ticks) for STCF
   
   uint64 expected_runtime;     // Hint for SJF/STCF: expected total runtime (in ticks).
-
   int priority;               // smaller = higher priority (for STCF/MLFQ)
   int queue_level;            // MLFQ level (0 = top queue)
   uint64 time_slice;             // remaining time in current level's quantum
   int demote;                 //time_slice never negative, need to keep track of this
+
+  struct proc *waiting_for;   //for mlfq with priority inversion
 };
 
 // helper used in getprocinfo() in sysproc.c
