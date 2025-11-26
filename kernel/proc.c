@@ -207,6 +207,7 @@ freeproc(struct proc *p)
   p->priority = 0;
   p->queue_level = 0;
   p->time_slice = 0;
+  p->waiting_for = 0;
 
   p->state = UNUSED;
 }
