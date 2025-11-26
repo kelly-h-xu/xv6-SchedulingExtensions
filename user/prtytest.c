@@ -8,7 +8,7 @@
 
 void burn_cpu(int intensity) {
     if (intensity == 0) return;
-    volatile double x = 0;
+    volatile int x = 0;
     for(int i = 0; i < intensity; i++) {
         x += 1;
     }
@@ -54,7 +54,7 @@ int main(int argc, char *argv[]) {
     int pid_m = fork();
     if (pid_m == 0) {
         burn_cpu(BURN_MED); // Drop to Medium
-        sleep(10); // Give L a tiny head start to finish its burning
+        pause(10); // Give L a tiny head start to finish its burning
         
         printf("M (Med): Waking up to hog CPU...\n");
         
@@ -70,12 +70,12 @@ int main(int argc, char *argv[]) {
     int pid_h = fork();
     if (pid_h == 0) {
         // H starts fresh (High Priority)
-        sleep(20); // Wait for L and M to become Low/Med and start running
+        pause(20); // Wait for L and M to become Low/Med and start running
 
         printf("H (High): Attempting to write (Should Block)...\n");
         
         // PIPE IS FULL. This write MUST block.
-        // Kernel should see: H (High) is sleeping on Pipe. 
+        // Kernel should see: H (High) is pauseing on Pipe. 
         // Pipe is full. L (Low) is the potential reader? 
         // (Note: Standard xv6 doesn't track "who" will read, 
         // so this relies on your specific PI implementation 

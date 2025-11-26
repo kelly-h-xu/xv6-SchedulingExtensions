@@ -704,7 +704,7 @@ priorities_reorient(struct proc *p)
   //printf("Got here \n");
   struct proc *q;
   int current_prio;
-  int wait = 0;
+  // int wait = 0;
   
   acquire(&p->lock);
   //printf("acquired \n");
@@ -713,7 +713,7 @@ priorities_reorient(struct proc *p)
   // If we are recalculating (propagate=0), we start from the process's 
   // natural MLFQ level (different from queue level)
   current_prio = p->priority; 
-  struct proc *target_proc = 0;
+  // struct proc *target_proc = 0;
 
   // 2. Scan for anyone waiting for ME to find the highest priority (lowest value)
   for (q = proc; q < &proc[NPROC]; q++) {
@@ -724,18 +724,18 @@ priorities_reorient(struct proc *p)
     if (q->waiting_for == p) {
       //printf("Yes there is potential \n");
       if (q->queue_level < current_prio) {
-        wait = 1;
-        target_proc = q;
-        printf("KERNEL: Boosting PID %d (queue %d) to match PID %d (queue %d)\n", p->pid, current_prio, target_proc->pid, target_proc->queue_level);
+        // wait = 1;
+        // target_proc = q;
+        // printf("KERNEL: Boosting PID %d (queue %d) to match PID %d (queue %d)\n", p->pid, current_prio, target_proc->pid, target_proc->queue_level);
         current_prio = q->queue_level;
       } 
     }
     release(&q->lock);
   }
 
-  if (wait == 0) {
-    printf("KERNEL: PID %d with previous queue %d gets new queue %d \n", p->pid, p->queue_level, current_prio);
-  }
+  // if (wait == 0) {
+  //   printf("KERNEL: PID %d with previous queue %d gets new queue %d \n", p->pid, p->queue_level, current_prio);
+  // }
   // 3. Apply the new priority
   int old_prio = p->queue_level;
   p->queue_level = current_prio;
@@ -760,7 +760,7 @@ priorities_reorient(struct proc *p)
   }
 }
 
-/*
+
 uint64 starv_cut = 1000*10000;
 
 void
@@ -783,7 +783,7 @@ starvation_clean(void)
     release(&p->lock);
   }
 }
-*/
+
 
 //Get time for 
 int startIndex[3] = {0,0,0};
@@ -797,7 +797,7 @@ schedule_mlfq(struct cpu *c)
   int found = 0;
 
   start_search:
-  //starvation_clean();
+  starvation_clean();
 
   for (int prty = 0; prty < 3; prty ++) {
     min_p = 0;
@@ -831,19 +831,32 @@ schedule_mlfq(struct cpu *c)
 
       p -> ltime = getTime();
 
-        //check if first schedule
-        if (p -> stime == 0) {
-          p -> stime = p -> ltime;
-        }
+      //check if first schedule
+      if (p -> stime == 0) {
+        p -> stime = p -> ltime;
+      }
 
-        swtch(&c->context, &p->context);
-        p->rtime += getTime()-p->ltime;
+      swtch(&c->context, &p->context);
+      // p->rtime += getTime()-p->ltime;
+
+      uint64 time = getTime();
+      uint64 elapsed = time - p->ltime;
+      p -> etime = time;
+
+      // Account for elapsed time
+      if (elapsed < p->time_slice) {
+        p->time_slice -= elapsed;
+      } else {
+        p->time_slice = 0;
+        p->demote = 1;
+      }
+      p->rtime += elapsed;
 
       if (p -> time_slice == 0 && p -> queue_level < 2) {
         if (p -> priority < 2) {
             p -> priority++;
         }
-        printf("Demotion happened for process %d with queue_level %d \n", p -> pid, p->queue_level);
+        // printf("Demotion happened for process %d with queue_level %d \n", p -> pid, p->queue_level);
         p -> queue_level++;
         p -> time_slice = quantum[p -> priority];
         p -> demote = 0;
@@ -959,18 +972,6 @@ void yield(void)
 {
   struct proc *p = myproc();
   acquire(&p->lock);
-  
-  uint64 time = getTime();
-  uint64 elapsed = time - p->ltime;
-  p -> etime = time;
-
-  // Account for elapsed time
-  if (elapsed < p->time_slice) {
-    p->time_slice -= elapsed;
-  } else {
-    p->time_slice = 0;
-    p->demote = 1;
-  }
   
   p->state = RUNNABLE;
 
