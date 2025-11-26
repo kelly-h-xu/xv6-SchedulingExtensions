@@ -212,6 +212,7 @@ int test_mixed_complex()
 int main()
 {
     printf("===== STCF TEST SUITE =====\n");
+    setstcfvals(1);
 
     int pass_pre = test_preempt();
     int pass_mix = test_mixed();
