@@ -136,3 +136,5 @@ struct proc {
 
 // helper used in getprocinfo() in sysproc.c
 struct proc *getproc(int pid);
+struct proc *myproc();
+void priorities_reorient(struct proc *p);
