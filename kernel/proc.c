@@ -172,7 +172,6 @@ found:
   p->queue_level = 0;
   p->time_slice = quantum[0];
   p->demote = 0;
-  p->waiting_for = 0;
 
   return p;
 }
@@ -208,7 +207,6 @@ freeproc(struct proc *p)
   p->queue_level = 0;
   p->time_slice = 0;
   p->demote = 0;
-  p->waiting_for = 0;
 
   p->state = UNUSED;
 }
@@ -710,69 +708,6 @@ schedule_stcf(struct cpu *c)
 
 //int prty_arr[3] = {1,2,4};
 
-void
-priorities_reorient(struct proc *p) 
-{
-  //printf("Got here \n");
-  struct proc *q;
-  int current_prio;
-  // int wait = 0;
-  
-  acquire(&p->lock);
-  //printf("acquired \n");
-
-  // 1. Determine the baseline priority.
-  // If we are recalculating (propagate=0), we start from the process's 
-  // natural MLFQ level (different from queue level)
-  current_prio = p->priority; 
-  // struct proc *target_proc = 0;
-
-  // 2. Scan for anyone waiting for ME to find the highest priority (lowest value)
-  for (q = proc; q < &proc[NPROC]; q++) {
-    if (q == p || q->state == UNUSED) continue;
-    // We must acquire q->lock to read q->waiting_for safely
-    acquire(&q->lock);
-
-    if (q->waiting_for == p) {
-      //printf("Yes there is potential \n");
-      if (q->queue_level < current_prio) {
-        // wait = 1;
-        // target_proc = q;
-        // printf("KERNEL: Boosting PID %d (queue %d) to match PID %d (queue %d)\n", p->pid, current_prio, target_proc->pid, target_proc->queue_level);
-        current_prio = q->queue_level;
-      } 
-    }
-    release(&q->lock);
-  }
-
-  // if (wait == 0) {
-  //   printf("KERNEL: PID %d with previous queue %d gets new queue %d \n", p->pid, p->queue_level, current_prio);
-  // }
-  // 3. Apply the new priority
-  int old_prio = p->queue_level;
-  p->queue_level = current_prio;
-  
-  // If we changed priority, reset time slice to be fair to the new queue
-  if (p->queue_level != old_prio) {
-      //printf("Change quantum \n");
-      p->time_slice = quantum[p->queue_level];
-  } 
-
-  // 4. TRANSITIVE INHERITANCE (The Chain)
-  // If p is waiting for someone else, we must push this priority changes down the line.
-  struct proc *next_target = p->waiting_for;
-  
-  release(&p->lock);
-
-  // If we boosted 'p', and 'p' is waiting for 'next_target', 
-  // we must reorient 'next_target' too.
-  if (next_target) {
-      // Recursive call (or iterative). 
-      priorities_reorient(next_target);
-  }
-}
-
-
 uint64 starv_cut = 1000*10000;
 
 void
@@ -871,10 +806,6 @@ schedule_mlfq(struct cpu *c)
         p -> queue_level++;
         p -> time_slice = quantum[p -> priority];
         p -> demote = 0;
-
-        release(&p -> lock);
-        priorities_reorient(p); 
-        acquire(&p -> lock);
       } 
 
       c->proc = 0;

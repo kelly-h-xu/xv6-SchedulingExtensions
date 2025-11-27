@@ -17,9 +17,6 @@ struct pipe {
   uint nwrite;    // number of bytes written
   int readopen;   // read fd is still open
   int writeopen;  // write fd is still open
-
-  struct proc *writer_proc; 
-  struct proc *reader_proc;
 };
 
 int
@@ -37,8 +34,6 @@ pipealloc(struct file **f0, struct file **f1)
   pi->writeopen = 1;
   pi->nwrite = 0;
   pi->nread = 0;
-  pi->writer_proc = 0;
-  pi->reader_proc = 0;
   initlock(&pi->lock, "pipe");
   (*f0)->type = FD_PIPE;
   (*f0)->readable = 1;
@@ -66,11 +61,9 @@ pipeclose(struct pipe *pi, int writable)
   acquire(&pi->lock);
   if(writable){
     pi->writeopen = 0;
-    pi->writer_proc = 0;
     wakeup(&pi->nread);
   } else {
     pi->readopen = 0;
-    pi->reader_proc = 0;
     wakeup(&pi->nwrite);
   }
   if(pi->readopen == 0 && pi->writeopen == 0){
@@ -87,10 +80,6 @@ pipewrite(struct pipe *pi, uint64 addr, int n)
   struct proc *pr = myproc();
 
   acquire(&pi->lock);
-
-  //record writer process
-  pi->writer_proc = pr; 
-
   while(i < n){
     if(pi->readopen == 0 || killed(pr)){
       release(&pi->lock);
@@ -98,25 +87,7 @@ pipewrite(struct pipe *pi, uint64 addr, int n)
     }
     if(pi->nwrite == pi->nread + PIPESIZE){ //DOC: pipewrite-full
       wakeup(&pi->nread);
-
-      if (pi->reader_proc) {
-        acquire(&pr->lock);
-        pr->waiting_for = pi->reader_proc; // Record dependency
-        release(&pr->lock);
-        
-        priorities_reorient(pi->reader_proc); 
-
-      }
-
       sleep(&pi->nwrite, &pi->lock);
-
-      if (pr->waiting_for) {
-        acquire(&pr->lock);
-        pr->waiting_for = 0; // Clear dependency
-        release(&pr -> lock);
-        priorities_reorient(pi->reader_proc); 
-      }
-
     } else {
       char ch;
       if(copyin(pr->pagetable, &ch, addr + i, 1) == -1)
@@ -139,44 +110,12 @@ piperead(struct pipe *pi, uint64 addr, int n)
   char ch;
 
   acquire(&pi->lock);
-
-  pi->reader_proc = pr; 
-
   while(pi->nread == pi->nwrite && pi->writeopen){  //DOC: pipe-empty
     if(killed(pr)){
       release(&pi->lock);
       return -1;
     }
-
-    // --- PRIORITY INHERITANCE START ---
-    // If there is a known writer, we donate our priority to them
-    // because they are holding the data we need.
-    printf("Writer pipe %p \n", pi->writer_proc);
-    if (pi->writer_proc) {
-      //printf("Haven't acquired this lock \n");
-      acquire(&pr->lock);
-      //printf("Acquired this lock \n");
-      pr->waiting_for = pi->writer_proc; // Record dependency
-      release(&pr->lock);
-      // Boost the writer's priority
-      // (Assumes you have implemented this function in proc.c)
-      priorities_reorient(pi->writer_proc); 
-      
-    }
-    // --- PRIORITY INHERITANCE END ---
-
     sleep(&pi->nread, &pi->lock); //DOC: piperead-sleep
-
-    // --- PRIORITY INHERITANCE CLEANUP ---
-    // We woke up. We are no longer strictly waiting on the lock/data 
-    // in the same way (or we need to re-evaluate).
-    if (pr->waiting_for) {
-      acquire(&pr->lock);
-      pr->waiting_for = 0; // Clear dependency
-      release(&pr -> lock);
-      priorities_reorient(pi->writer_proc); 
-    }
-    // --- CLEANUP END ---
   }
   for(i = 0; i < n; i++){  //DOC: piperead-copy
     if(pi->nread == pi->nwrite)

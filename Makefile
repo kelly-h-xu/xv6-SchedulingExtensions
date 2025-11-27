@@ -155,7 +155,6 @@ UPROGS=\
 	$U/_stcftest\
 	$U/_fifotest\
 	$U/_sjftest\
-	$U/_prtytest\
 	$U/_schedeval\
 
 fs.img: mkfs/mkfs README $(UPROGS)
