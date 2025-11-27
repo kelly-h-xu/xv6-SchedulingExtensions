@@ -119,16 +119,17 @@ struct proc {
 
   // metadata for scheduling
   uint64 ctime;                // creation time (time when first became RUNNABLE)
-  uint64 etime;                // exit time (time when became ZOMBIE), but also end of last schedule
+  uint64 etime;                // the most recent time that the process finishes running (also when it becomes a Zombie)
   uint64 rtime;                // total CPU time (time this process has run)
   uint64 stime;                // first scheduled time
   uint64 ltime;                // last scheduled time
-  uint64 time_left;            // Remaining time (in ticks) for STCF
-  
-  uint64 expected_runtime;     // Hint for SJF/STCF: expected total runtime (in ticks).
+
+  uint64 time_left;            // Remaining time (in a 10MHz clock) for STCF
+  uint64 expected_runtime;     // Hint for SJF/STCF: expected total runtime (in a 10MHz clock).
+
   int priority;               // smaller = higher priority (for STCF/MLFQ)
   int queue_level;            // MLFQ level (0 = top queue)
-  uint64 time_slice;             // remaining time in current level's quantum
+  uint64 time_slice;          // remaining time in current level's quantum
   int demote;                 //time_slice never negative, need to keep track of this
 
   struct proc *waiting_for;   //for mlfq with priority inversion

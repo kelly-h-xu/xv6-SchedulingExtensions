@@ -207,6 +207,7 @@ freeproc(struct proc *p)
   p->priority = 0;
   p->queue_level = 0;
   p->time_slice = 0;
+  p->demote = 0;
   p->waiting_for = 0;
 
   p->state = UNUSED;
@@ -418,9 +419,14 @@ void kexit(int status)
     p->demote = 1;
   }
 
-
   p->xstate = status;
   p->rtime += elapsed;  //cpu burst time tracking
+  if (p->time_left > 0){
+    p->time_left -= elapsed;
+  }
+  if (p->time_left < 0){
+    p->time_left = 0;
+  }
   p->etime = time;
   p->state = ZOMBIE;
 
@@ -685,6 +691,12 @@ schedule_stcf(struct cpu *c)
   best->ltime = getTime();
   swtch(&c->context, &best->context);
   best->rtime += getTime() - best->ltime;
+  if (best->time_left > 0){
+    best->time_left -= getTime() - best->ltime;
+  }
+  if (best->time_left < 0){
+    best->time_left = 0;
+  }
 
   c->proc = 0;
   release(&best->lock);
@@ -777,7 +789,6 @@ starvation_clean(void)
       if (waited > starv_cut && p->queue_level > 0) { // waited > 200ms
         p->queue_level--;
         p->time_slice = quantum[p->queue_level];
-        p->etime = time;
       }
     }
     release(&p->lock);
@@ -837,11 +848,11 @@ schedule_mlfq(struct cpu *c)
       }
 
       swtch(&c->context, &p->context);
-      // p->rtime += getTime()-p->ltime;
+      p->rtime += getTime() - p->ltime;
 
       uint64 time = getTime();
       uint64 elapsed = time - p->ltime;
-      p -> etime = time;
+      p->etime = time;
 
       // Account for elapsed time
       if (elapsed < p->time_slice) {
@@ -974,12 +985,6 @@ void yield(void)
   acquire(&p->lock);
   
   p->state = RUNNABLE;
-
-  if (p->time_left > 0)
-  {
-    p->time_left--;
-  }
-
   sched();
   release(&p->lock);
 }

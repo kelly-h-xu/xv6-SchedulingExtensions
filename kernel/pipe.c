@@ -66,9 +66,11 @@ pipeclose(struct pipe *pi, int writable)
   acquire(&pi->lock);
   if(writable){
     pi->writeopen = 0;
+    pi->writer_proc = 0;
     wakeup(&pi->nread);
   } else {
     pi->readopen = 0;
+    pi->reader_proc = 0;
     wakeup(&pi->nwrite);
   }
   if(pi->readopen == 0 && pi->writeopen == 0){
